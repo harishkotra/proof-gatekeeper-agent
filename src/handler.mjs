@@ -1,11 +1,23 @@
 // Shared request handler - used by both the long-lived server and the serverless function.
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { appendFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { decide, buildSignals, REASON } from './decide.mjs';
 import { prove, proverStats } from './prover.mjs';
 import { createStore } from './store.mjs';
 
-const SECRET = process.env.AGENT_GAMES_HMAC_SECRET || '';
+function loadSecret() {
+  if (process.env.AGENT_GAMES_HMAC_SECRET) return process.env.AGENT_GAMES_HMAC_SECRET;
+  // Fallback for anonymous/temporary deployments where env vars are unavailable.
+  for (const p of ['../config/secret.json', './config/secret.json', process.cwd() + '/config/secret.json']) {
+    try {
+      const j = JSON.parse(readFileSync(new URL(p, import.meta.url), 'utf8'));
+      if (j.secret) return String(j.secret);
+    } catch { /* try next */ }
+  }
+  return '';
+}
+const SECRET = loadSecret();
 const SIG_HEADER = 'x-agent-games-signature';
 const ENCODING = (process.env.SIGNATURE_ENCODING || 'hex').toLowerCase();
 const MAX_BODY = 256 * 1024;
@@ -64,10 +76,11 @@ export async function handle(req, res) {
   const t0 = Date.now();
   const url = new URL(req.url || '/', 'http://localhost');
 
-  if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
+  if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/' || url.pathname === '/api/health')) {
     return send(res, 200, { ok: true, service: 'proof-gatekeeper', uptime_s: Math.round(process.uptime()), prover: proverStats(), seen: store().size?.() ?? 0 });
   }
-  if (req.method !== 'POST' || (url.pathname !== '/agent' && url.pathname !== '/')) {
+  // Any POST is a task: hosts rewrite /agent to /api/agent and hand us the rewritten path.
+  if (req.method !== 'POST') {
     return send(res, 404, { error: 'not found' });
   }
 

@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/agent.mjs": {
-      "includeFiles": "circuits/**",
+      "includeFiles": "{circuits/**,config/**}",
       "maxDuration": 60,
       "memory": 1024
     }
