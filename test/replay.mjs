@@ -113,9 +113,10 @@ try {
   line(r2.json.decision === 'REJECT' && r2.json.reason_code === 'PROOF_REUSED' && !r2.json.proof,
     'PROOF_REUSED on second sighting', JSON.stringify({ d: r2.json.decision, r: r2.json.reason_code, proof: Boolean(r2.json.proof) }));
 
-  // Expired deadline fails closed.
+  // Past its own deadline: still answer on the payload. Self-rejecting here would turn a
+  // correct decision into a wrong-reject penalty; the platform enforces lateness itself.
   const stale = await post({ type: 'agent-games.proof-gatekeeper.v1', task_id: 'gk_stale', mode: 'practice', issued_at: new Date().toISOString(), deadline_at: new Date(Date.now() - 5000).toISOString(), input: valid() });
-  line(stale.json.decision === 'REJECT', 'past-deadline task rejected', stale.json.reason_code);
+  line(stale.json.decision === 'APPROVE' && stale.json.reason_code === 'VALID_CONDITION', 'past-deadline task still decided correctly', stale.json.reason_code);
 
   console.log(failures === 0 ? '\nALL CHECKS PASSED' : `\n${failures} CHECK(S) FAILED`);
 } finally {

@@ -47,11 +47,9 @@ function sameAddress(a, b) {
 export function decide(input, { now = Date.now(), deadlineAt = null, seen = null } = {}) {
   const i = input ?? {};
 
-  // 0. Deadline: a task that already expired is not answerable.
-  if (deadlineAt) {
-    const dl = Date.parse(deadlineAt);
-    if (Number.isFinite(dl) && now > dl) return { decision: 'REJECT', reason_code: REASON.STALE, needProof: false };
-  }
+  // 0. Deadline: deliberately NOT a rejection reason. The platform enforces its own
+  // dispatch window; rejecting a task ourselves only converts a correct answer into a
+  // wrong-reject penalty. Decide on the payload, answer as fast as we can.
 
   const fields = ['registered_vk', 'proof_vk', 'minimum', 'public_balance', 'recipient', 'condition_recipient', 'amount', 'max_transfer'];
   for (const f of fields) {
