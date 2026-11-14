@@ -5,3 +5,4 @@ config/secret.json
 *.wtns
 *.log
 .vercel
+.env*

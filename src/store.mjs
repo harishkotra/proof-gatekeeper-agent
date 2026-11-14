@@ -78,7 +78,21 @@ class GithubStore {
     this.primed = true;
   }
   has(k) { return this.cache.has(k); }
-  async add(k) {
+
+  // Serverless instances can hold a stale cache: re-read the source of truth so a
+  // reuse decision is never made on a cold, out-of-date view.
+  async refresh() {
+    const res = await this.api(`contents/${this.file}?ref=${this.branch}`);
+    if (res.status !== 200) return;
+    const body = await res.json();
+    this.sha = body.sha;
+    try {
+      const text = Buffer.from(body.content || '', 'base64').toString('utf8');
+      for (const k of JSON.parse(text).seen || []) this.cache.add(k);
+    } catch { /* unreadable content: keep local cache */ }
+    this.primed = true;
+  }
+  async add(k, attempt = 0) {
     await this.load();
     if (this.cache.has(k)) return;
     this.cache.add(k);
@@ -93,6 +107,13 @@ class GithubStore {
     if (res.ok) {
       const body = await res.json();
       this.sha = body.content?.sha || this.sha;
+      return;
+    }
+    // 409 = a concurrent instance wrote first. Re-read, merge, retry once.
+    if (res.status === 409 && attempt < 2) {
+      this.cache.delete(k);
+      await this.refresh();
+      return this.add(k, attempt + 1);
     }
   }
   size() { return this.cache.size; }

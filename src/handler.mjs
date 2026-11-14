@@ -113,6 +113,7 @@ export async function handle(req, res) {
   const input = envelope.input || {};
   const ref = String(input.proof_tx ?? '').trim().toLowerCase();
   await store().load?.();
+  await store().refresh?.(); // serverless: never decide reuse on a stale cache
   const verdict = decide(input, { now: Date.now(), deadlineAt: envelope.deadline_at, seen: store() });
 
   let proof = null, publicSignals = null, proofError = null;
