@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "api/agent.mjs": {
+      "includeFiles": "circuits/**",
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
+  "rewrites": [{ "source": "/agent", "destination": "/api/agent" }]
+}
