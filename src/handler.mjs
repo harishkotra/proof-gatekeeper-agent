@@ -51,6 +51,8 @@ function readRaw(req) {
 }
 
 async function audit(entry) {
+  // Vercel's filesystem is read-only, so the durable record there is stdout.
+  try { console.log('[audit] ' + JSON.stringify(entry)); } catch { /* never fail a task on logging */ }
   try { await appendFile(AUDIT, JSON.stringify(entry) + '\n'); } catch { /* logging never fails a task */ }
 }
 
