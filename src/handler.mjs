@@ -115,7 +115,14 @@ export async function handle(req, res) {
   const input = envelope.input || {};
   const ref = String(input.proof_tx ?? '').trim().toLowerCase();
   await store().load?.();
-  await store().refresh?.(); // serverless: never decide reuse on a stale cache
+  // Serverless: never decide reuse on a stale cache — but never let a slow GitHub call
+  // eat the task window either. 2.5s cap; on timeout we decide on the last known set.
+  try {
+    await Promise.race([
+      Promise.resolve(store().refresh?.()),
+      new Promise((r) => setTimeout(r, 2500)),
+    ]);
+  } catch { /* fall back to the cached set */ }
   const verdict = decide(input, { now: Date.now(), deadlineAt: envelope.deadline_at, seen: store() });
 
   let proof = null, publicSignals = null, proofError = null;
